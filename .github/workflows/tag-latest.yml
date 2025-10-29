@@ -1,0 +1,33 @@
+name: Add 'latest' tag to latest commit
+
+defaults:
+  run:
+    shell: bash
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  update-tag:
+    runs-on: ubuntu-24.04
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4.3.0
+        with:
+          fetch-depth: 1
+
+      - name: Configure Git User
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Force-update 'latest' tag
+        run: |
+          git tag -f latest HEAD
+          git push -f origin latest

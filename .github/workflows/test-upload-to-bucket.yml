@@ -1,0 +1,97 @@
+name: 99. Test 'upload-to-bucket' action
+
+defaults:
+  run:
+    shell: bash
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  test-upload-to-bucket:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3.0.0
+        with:
+          create_credentials_file: true
+          token_format: access_token
+          service_account: ${{ vars.GCS_SERVICE_ACCOUNT }}
+          workload_identity_provider: ${{ vars.WORKLOAD_IDENTITY_PROVIDER }}
+
+      - name: Upload a dummy directory that should be deleted later
+        id: upload-dummy-dir
+        env:
+          BUCKET_NAME: ${{ vars.PLAYWRIGHT_REPORTS_BUCKET_NAME }}
+        run: |
+          set -euo pipefail
+          
+          # Keep this code in sync with upload-to-bucket/action.yml
+          date_format='%Y%m%d-%H%M%S'
+          threshold=$(( $(date -u +%s) - (86400 * 8) ))
+          threshold_date=$(date -u -d "@${threshold}" "+${date_format}")
+          namespace_dir="${threshold_date}_action-test/"
+          
+          echo "namespace_dir=${namespace_dir}" >>$GITHUB_OUTPUT
+          
+          touch dummy
+          gcloud storage cp dummy "gs://${BUCKET_NAME}/${namespace_dir}"
+
+      - name: Create a test file to upload
+        run: |
+          set -euo pipefail
+          
+          mkdir upload
+          cat <<. >upload/index.html
+          <!doctype html>
+          <html>
+          <body>
+          <h1>It works!</h1>
+          <p><code>test-upload-to-bucket</code> has generated this file on $(date +%c)</p>
+          </body>
+          </html>
+          .
+
+      - name: Upload to bucket using upload-to-bucket action
+        id: upload
+        uses: mservicestech/actions/upload-to-bucket@latest
+        with:
+          path: upload
+          namespace: action-test
+          bucket_name: ${{ vars.PLAYWRIGHT_REPORTS_BUCKET_NAME }}
+          service_account: ${{ vars.GCS_SERVICE_ACCOUNT }}
+          workload_identity_provider: ${{ vars.WORKLOAD_IDENTITY_PROVIDER }}
+          delete_older_than: 7
+
+      - name: Check if stale folder has been deleted
+        env:
+          DUMMY_DIR: ${{ steps.upload-dummy-dir.outputs.namespace_dir }}
+          BUCKET_NAME: ${{ vars.PLAYWRIGHT_REPORTS_BUCKET_NAME }}
+        run: |
+          set -euo pipefail
+
+          bucket_contents=$(gcloud storage ls "gs://${BUCKET_NAME}")
+          echo "::group::Bucket contents"
+          echo -e "${bucket_contents}"
+          echo "::endgroup::"
+
+          if grep -q "${DUMMY_DIR}" <<<"${bucket_contents}"; then
+            echo "Stale entry has not been deleted from the bucket"
+            exit 1
+          fi
+
+      - name: Show a link to the uploaded resource
+        env:
+          UPLOAD_PATH: ${{ steps.upload.outputs.path }}
+          URL_BASE: ${{ vars.PLAYWRIGHT_REPORTS_URL_BASE }}
+        run: |
+          set -euo pipefail
+          
+          echo "Please open ${URL_BASE}${UPLOAD_PATH} and check whether it contains a test page with current date" 
