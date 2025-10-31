@@ -68,7 +68,7 @@ runs:
         path="/${namespace_dir}/"
         echo "path=${path}" >>$GITHUB_OUTPUT
 
-        (cd "${PATH_TO_UPLOAD}" && gcloud storage cp --recursive --gzip-local html,css,js,xml,svg,ttf,woff,woff2,json . "gs://${BUCKET_NAME}/${namespace_dir}/")
+        (cd "${PATH_TO_UPLOAD}" && gcloud storage cp --recursive . "gs://${BUCKET_NAME}/${namespace_dir}/")
 
         if [ -n "${DELETE_OLDER_THAN}" ]; then
           bucket_contents=$(gcloud storage ls "gs://${BUCKET_NAME}")
