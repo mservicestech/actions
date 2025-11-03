@@ -1,0 +1,97 @@
+name: 'Delete from bucket'
+description: 'Delete files or directories from specified bucket, optionally removing stale directories'
+inputs:
+  namespace:
+    description: 'A part of directory name where the files will be uploaded, e.g. 20250925-namespace'
+    required: true
+  bucket_name:
+    description: 'GCS bucket where the files will be uploaded, without gs:// or trailing slash'
+    required: true
+  service_account:
+    description: 'Service account used for bucket upload'
+    required: true
+  workload_identity_provider:
+    description: 'Workload Identity Provider used for authentication'
+    required: true
+  delete_older_than:
+    description: "If set, directories of this namespace older than delete_older_than days will be deleted"
+  date:
+    description: 'Which prefix to delete'
+
+runs:
+  using: composite
+  steps:
+    - name: Sanity checks
+      shell: bash
+      env:
+        DATE: ${{ inputs.date }}
+        NAMESPACE: ${{ inputs.namespace }}
+        DELETE_OLDER_THAN: ${{ inputs.delete_older_than }}
+      run: |
+        set -euo pipefail
+        
+        if [[ $NAMESPACE == *' '* ]]; then
+          echo "Namespace cannot contain space"
+          exit 1
+        fi
+        
+        if [[ -n $DELETE_OLDER_THAN && ! $DELETE_OLDER_THAN =~ ^[0-9]+$ ]]; then
+          echo "delete_older_than is not numeric"
+          exit 2
+        fi
+        
+        if [[ -z $DATE && -z $DELETE_OLDER_THAN ]]; then
+          echo 'At least one of `date` or `delete_older_than` must be provided'
+          exit 3
+        fi
+    - uses: google-github-actions/auth@v3.0.0
+      with:
+        create_credentials_file: true
+        token_format: access_token
+        service_account: ${{ inputs.service_account }}
+        workload_identity_provider: ${{ inputs.workload_identity_provider }}
+    - id: delete-from-gcs
+      shell: bash
+      env:
+        DATE: ${{ inputs.date }}
+        BUCKET_NAME: ${{ inputs.bucket_name }}
+        NAMESPACE: ${{ inputs.namespace }}
+        DELETE_OLDER_THAN: ${{ inputs.delete_older_than }}
+      run: |
+        set -euo pipefail
+        
+        if [ -n "${DATE}" ]; then
+          echo "::group::Deleting ${DATE}_${NAMESPACE}"
+          gcloud storage rm --recursive "gs://${BUCKET_NAME}/${DATE}_${NAMESPACE}/"
+          echo "::endgroup::"
+        fi
+
+        if [ -n "${DELETE_OLDER_THAN}" ]; then
+          # Keep in sync with upload-to-bucket/action.yml
+          date_format='%Y%m%d-%H%M%S'
+        
+          bucket_contents=$(gcloud storage ls "gs://${BUCKET_NAME}")
+          # Trim protocol and bucket name
+          bucket_contents=$(sed "s|gs://${BUCKET_NAME}/||" <<<"${bucket_contents}")
+          # Select only directories of this namespace
+          bucket_contents=$(grep -P "^\d{8}-\d{6}_${NAMESPACE}/$" <<<"${bucket_contents}")
+          # Convert newlines to spaces
+          bucket_contents=$(tr '\n' ' ' <<<"${bucket_contents}")
+          
+          # Calculate threshold time in epoch seconds
+          threshold=$(( $(date -u +%s) - (86400 * DELETE_OLDER_THAN) ))
+          threshold_date=$(date -u -d "@${threshold}" "+${date_format}")
+          
+          echo "::group::Deleting directories older than ${threshold_date}"
+          for directory in $bucket_contents; do
+            if [[ $directory < $threshold_date ]]; then
+              echo "Deleting ${directory}"
+              gcloud storage rm --recursive "gs://${BUCKET_NAME}/${directory}"
+            fi
+          done
+          echo "::endgroup::"
+        fi
+
+branding:
+  color: red
+  icon: trash

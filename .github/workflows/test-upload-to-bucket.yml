@@ -1,4 +1,4 @@
-name: 99. Test 'upload-to-bucket' action
+name: 99. Test 'upload-to-bucket' and 'delete-from-bucket' actions
 
 defaults:
   run:
@@ -26,7 +26,7 @@ jobs:
           service_account: ${{ vars.GCS_SERVICE_ACCOUNT }}
           workload_identity_provider: ${{ vars.WORKLOAD_IDENTITY_PROVIDER }}
 
-      - name: Upload a dummy directory that should be deleted later
+      - name: Upload dummy directories that should be deleted later
         id: upload-dummy-dir
         env:
           BUCKET_NAME: ${{ vars.PLAYWRIGHT_REPORTS_BUCKET_NAME }}
@@ -35,16 +35,25 @@ jobs:
           
           # Keep this code in sync with upload-to-bucket/action.yml
           date_format='%Y%m%d-%H%M%S'
-          threshold=$(( $(date -u +%s) - (86400 * 8) ))
-          threshold_date=$(date -u -d "@${threshold}" "+${date_format}")
-          namespace_dir="${threshold_date}_action-test/"
           
-          echo "namespace_dir=${namespace_dir}" >>$GITHUB_OUTPUT
+          # Create a directory that should be deleted because it's stale
+          threshold1=$(( $(date -u +%s) - (86400 * 8) ))
+          threshold1_date=$(date -u -d "@${threshold1}" "+${date_format}")
+          stale_dir="${threshold1_date}_action-test/"
           
-          touch dummy
-          gcloud storage cp dummy "gs://${BUCKET_NAME}/${namespace_dir}"
+          # Create a dummy directory to be explicitly deleted
+          threshold2=$(( $(date -u +%s) - (86400 * 2) ))
+          threshold2_date=$(date -u -d "@${threshold2}" "+${date_format}")
+          echo "dummy_date=${threshold2_date}" >$GITHUB_OUTPUT
+          dummy_dir="${threshold2_date}_action-test/"
+          
+          echo "Dummy file" >dummy_file
+          for dir_name in stale_dir dummy_dir; do
+            echo "${dir_name}=${!dir_name}" >>$GITHUB_OUTPUT  
+            gcloud storage cp dummy_file "gs://${BUCKET_NAME}/${!dir_name}"
+          done
 
-      - name: Create a test file to upload
+      - name: Create a test HTML file to upload
         run: |
           set -euo pipefail
           
@@ -64,15 +73,25 @@ jobs:
         uses: mservicestech/actions/upload-to-bucket@latest
         with:
           path: upload
-          namespace: action-test
+          namespace: &namespace action-test
+          bucket_name: ${{ vars.PLAYWRIGHT_REPORTS_BUCKET_NAME }}
+          service_account: ${{ vars.GCS_SERVICE_ACCOUNT }}
+          workload_identity_provider: ${{ vars.WORKLOAD_IDENTITY_PROVIDER }}
+
+      - name: 'Delete dummy & stale directory'
+        uses: mservicestech/actions/delete-from-bucket@latest
+        with:
+          date: ${{ steps.upload-dummy-dir.outputs.dummy_date }}
+          namespace: *namespace
           bucket_name: ${{ vars.PLAYWRIGHT_REPORTS_BUCKET_NAME }}
           service_account: ${{ vars.GCS_SERVICE_ACCOUNT }}
           workload_identity_provider: ${{ vars.WORKLOAD_IDENTITY_PROVIDER }}
           delete_older_than: 7
 
-      - name: Check if stale folder has been deleted
+      - name: Check if dummy folders have been deleted
         env:
-          DUMMY_DIR: ${{ steps.upload-dummy-dir.outputs.namespace_dir }}
+          STALE_DIR: ${{ steps.upload-dummy-dir.outputs.stale_dir }}
+          DUMMY_DIR: ${{ steps.upload-dummy-dir.outputs.dummy_dir }}
           BUCKET_NAME: ${{ vars.PLAYWRIGHT_REPORTS_BUCKET_NAME }}
         run: |
           set -euo pipefail
@@ -83,8 +102,13 @@ jobs:
           echo "::endgroup::"
 
           if grep -q "${DUMMY_DIR}" <<<"${bucket_contents}"; then
-            echo "Stale entry has not been deleted from the bucket"
+            echo "Dummy directory has not been deleted from the bucket!"
             exit 1
+          fi
+          
+          if grep -q "${STALE_DIR}" <<<"${bucket_contents}"; then
+            echo "Stale directory has not been deleted from the bucket!"
+            exit 2
           fi
 
       - name: Show a link to the uploaded resource
