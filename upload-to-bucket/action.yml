@@ -39,7 +39,6 @@ runs:
 
     - uses: google-github-actions/auth@v3.0.0
       with:
-        create_credentials_file: true
         token_format: access_token
         service_account: ${{ inputs.service_account }}
         workload_identity_provider: ${{ inputs.workload_identity_provider }}
