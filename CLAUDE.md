@@ -11,10 +11,9 @@ tokens or org internals in any file.
 
 ## Layout
 
-- `<action-name>/` — composite actions, each with `action.yml` and a README
-  (inputs, outputs, version history).
-- `examples/` — one copy-paste-ready caller workflow per action, same file
-  name, demonstrating the cross-org PAT-checkout pattern.
+- `<action-name>/` — composite actions, each with `action.yml`, a README
+  (inputs, outputs, version history) and `example-use.yml` — a copy-paste
+  ready caller workflow demonstrating the cross-org PAT-checkout pattern.
 - `.github/workflows/` — repo maintenance only: `tag-latest.yml` and
   self-tests (prefixed `99.`, run via workflow_dispatch).
 
@@ -25,7 +24,8 @@ to `master` (merging moves the `latest` tag immediately).
 
 Every new action must be reusable (all configuration via inputs with
 defaults, tokens as inputs since composite actions have no `secrets` block),
-must ship an example in `examples/`, and must get a section in `README.md`.
+must ship an `example-use.yml` in its folder, and must get a section in
+`README.md`.
 Enum-like inputs are validated in the first step with an `::error::`
 annotation on invalid values.
 

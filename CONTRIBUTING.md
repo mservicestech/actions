@@ -25,9 +25,9 @@ tag, so a pull request must leave the repository in a working state.
    Reusable workflows cannot be called from a checkout, so they would only
    work for one of the two organizations.
 
-2. **It must have an example.** Add a copy-paste-ready caller workflow to
-   [`examples/`](examples), named after the action it demonstrates
-   (e.g. `examples/node-vulnerability-scan.yml`). Show the cross-org
+2. **It must have an example.** Add a copy-paste-ready caller workflow as
+   `example-use.yml` inside the action's folder
+   (e.g. `node-vulnerability-scan/example-use.yml`). Show the cross-org
    PAT-checkout call and, where useful, an advanced variant (matrix, pinned
    versions).
 

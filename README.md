@@ -35,7 +35,8 @@ personal access token and use the action from the local path instead:
 - uses: ./.shared-actions/node-vulnerability-scan
 ```
 
-Copy-paste-ready caller workflows are in [`examples/`](examples).
+Each action folder contains a copy-paste-ready caller workflow
+(`example-use.yml`) demonstrating this pattern.
 
 ## Actions
 
@@ -50,7 +51,7 @@ Inputs (all optional): `yarn-lock-path` (default `yarn.lock`), `node-version`
 (default `lts/*` — the latest LTS), `severity` (`info`/`low`/`moderate`/`high`/`critical`,
 default `high`), `npm-token` (for private-registry installs).
 
-Example: [examples/node-vulnerability-scan.yml](examples/node-vulnerability-scan.yml)
+Example: [node-vulnerability-scan/example-use.yml](node-vulnerability-scan/example-use.yml)
 
 ### [upload-to-bucket](upload-to-bucket)
 
