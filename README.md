@@ -63,6 +63,10 @@ path. Authenticates to GCP via Workload Identity Federation.
 Deletes a directory from a GCS bucket by date prefix and/or removes stale
 directories older than a given number of days.
 
+### [sonarqube-pr-comment](sonarqube-pr-comment)
+
+Adds a comment to PR after SonarQube code analysis
+
 ## Contributing
 
 Rules for adding new actions — reusability, examples and documentation

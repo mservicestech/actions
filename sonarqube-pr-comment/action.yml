@@ -1,0 +1,30 @@
+name: "SonarQube Pull Request Comment"
+description: "Checks SonarQube Quality Gate status and comments on a pull request."
+branding:
+  icon: 'activity'
+  color: 'red'
+inputs:
+  sonar_host_url:
+    description: "SonarQube URL, reachable by runners"
+    required: true
+  sonar_public_host_url:
+    description: "Publicly reachable SonarQube URL, used to build dashboard links in the PR comment"
+    required: true
+  sonar_token:
+    description: "SonarQube authentication token"
+    required: true
+  github_token:
+    description: "GitHub token"
+    required: true
+  repo_name:
+    description: "Repository name"
+    required: true
+  pr_number:
+    description: "Pull Request number"
+    required: true
+
+runs:
+  using: 'node24'
+  main: 'main.js'
+
+
