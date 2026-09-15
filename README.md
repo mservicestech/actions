@@ -65,7 +65,8 @@ directories older than a given number of days.
 
 ### [sonarqube-pr-comment](sonarqube-pr-comment)
 
-Adds a comment to PR after SonarQube code analysis
+Posts or updates a single PR comment after SonarQube code analysis: quality gate conditions, open
+Blocker/High issues and vulnerabilities, with links to GitHub and SonarQube.
 
 ## Contributing
 
