@@ -32,7 +32,7 @@ jobs:
 
       - name: Comment on PR
         if: always()
-        uses: mservicestech/actions/sonarqube-pr-comment@v1.0.4
+        uses: mservicestech/actions/sonarqube-pr-comment@1.0.4
         with:
           sonar_token: ${{ secrets.SONAR_TOKEN }}
           sonar_host_url: ${{ vars.SONAR_HOST_URL }}
